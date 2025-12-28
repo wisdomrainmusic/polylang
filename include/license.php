@@ -183,7 +183,8 @@ class PLL_License {
 	 * @return void
 	 */
 	public function check_license() {
-		$this->api_request( 'check_license' );
+		// Lisans kontrolü devre dışı
+		return;
 	}
 
 	/**
@@ -196,49 +197,8 @@ class PLL_License {
 	 * @return void
 	 */
 	private function api_request( $request ) {
-		$licenses = get_option( 'polylang_licenses' );
-
-		if ( is_array( $licenses ) ) {
-			unset( $licenses[ $this->id ] );
-		} else {
-			$licenses = array();
-		}
-		unset( $this->license_data );
-
-		if ( ! empty( $this->license_key ) ) {
-			// Data to send in our API request
-			$api_params = array(
-				'edd_action' => $request,
-				'license'    => $this->license_key,
-				'item_name'  => urlencode( $this->name ),
-				'url'        => home_url(),
-			);
-
-			// Call the API
-			$response = wp_remote_post(
-				$this->api_url,
-				array(
-					'timeout'   => 3,
-					'sslverify' => false,
-					'body'      => $api_params,
-				)
-			);
-
-			// Update the option only if we got a response
-			if ( is_wp_error( $response ) ) {
-				return;
-			}
-
-			// Save new license info
-			$licenses[ $this->id ] = array( 'key' => $this->license_key );
-			$data = (object) json_decode( wp_remote_retrieve_body( $response ) );
-
-			if ( isset( $data->license ) && 'deactivated' !== $data->license ) {
-				$licenses[ $this->id ]['data'] = $this->license_data = $data;
-			}
-		}
-
-		update_option( 'polylang_licenses', $licenses ); // FIXME called multiple times when saving all licenses
+		// API isteği gönderimi engellendi
+		return;
 	}
 
 	/**
@@ -249,114 +209,7 @@ class PLL_License {
 	 * @return string
 	 */
 	public function get_form_field() {
-		if ( ! empty( $this->license_data ) ) {
-			$license = $this->license_data;
-		}
-
-		$class   = 'license-null';
-		$message = '';
-
-		$out = sprintf(
-			'<td><label for="pll-licenses[%1$s]">%2$s</label></td>' .
-			'<td><input name="licenses[%1$s]" id="pll-licenses[%1$s]" type="password" value="%3$s" class="regular-text code" />',
-			esc_attr( $this->id ),
-			esc_attr( $this->name ),
-			esc_html( $this->license_key )
-		);
-
-		if ( ! empty( $license ) && is_object( $license ) ) {
-			$now = time();
-			$expiration = isset( $license->expires ) ? strtotime( $license->expires ) : false;
-
-			// Special case: the license expired after the last check
-			if ( $license->success && $expiration && $expiration < $now ) {
-				$license->success = false;
-				$license->error = 'expired';
-			}
-
-			if ( false === $license->success ) {
-				$class = 'notice-error notice-alt';
-
-				switch ( $license->error ) {
-					case 'expired':
-						$message = sprintf(
-							/* translators: %1$s is a date, %2$s is link start tag, %3$s is link end tag. */
-							esc_html__( 'Your license key expired on %1$s. Please %2$srenew your license key%3$s.', 'polylang' ),
-							esc_html( date_i18n( get_option( 'date_format' ), $expiration ) ),
-							sprintf( '<a href="%s" target="_blank">', self::ACCOUNT_URL ),
-							'</a>'
-						);
-						break;
-
-					case 'disabled':
-					case 'revoked':
-						$message = esc_html__( 'Your license key has been disabled.', 'polylang' );
-						break;
-
-					case 'missing':
-						$message = sprintf(
-							/* translators: %1$s is link start tag, %2$s is link end tag. */
-							esc_html__( 'Invalid license. Please %1$svisit your account page%2$s and verify it.', 'polylang' ),
-							sprintf( '<a href="%s" target="_blank">', self::ACCOUNT_URL ),
-							'</a>'
-						);
-						break;
-
-					case 'invalid':
-					case 'site_inactive':
-						$message = sprintf(
-							/* translators: %1$s is a product name, %2$s is link start tag, %3$s is link end tag. */
-							esc_html__( 'Your %1$s license key is not active for this URL. Please %2$svisit your account page%3$s to manage your license key URLs.', 'polylang' ),
-							esc_html( $this->name ),
-							sprintf( '<a href="%s" target="_blank">', self::ACCOUNT_URL ),
-							'</a>'
-						);
-						break;
-
-					case 'item_name_mismatch':
-						/* translators: %s is a product name */
-						$message = sprintf( esc_html__( 'This is not a %s license key.', 'polylang' ), esc_html( $this->name ) );
-						break;
-
-					case 'no_activations_left':
-						$message = sprintf(
-							/* translators: %1$s is link start tag, %2$s is link end tag */
-							esc_html__( 'Your license key has reached its activation limit. %1$sView possible upgrades%2$s now.', 'polylang' ),
-							sprintf( '<a href="%s" target="_blank">', self::ACCOUNT_URL ),
-							'</a>'
-						);
-						break;
-				}
-			} else {
-				$class = 'license-valid';
-
-				$out .= sprintf( '<button id="deactivate_%s" type="button" class="button button-secondary pll-deactivate-license">%s</button>', esc_attr( $this->id ), esc_html__( 'Deactivate', 'polylang' ) );
-
-				if ( 'lifetime' === $license->expires ) {
-					$message = esc_html__( 'The license key never expires.', 'polylang' );
-				} elseif ( $expiration > $now && $expiration - $now < ( DAY_IN_SECONDS * 30 ) ) {
-					$class = 'notice-warning notice-alt';
-					$message = sprintf(
-						/* translators: %1$s is a date, %2$s is link start tag, %3$s is link end tag. */
-						esc_html__( 'Your license key will expire soon! Precisely, it will expire on %1$s. %2$sRenew your license key today!%3$s', 'polylang' ),
-						esc_html( date_i18n( get_option( 'date_format' ), $expiration ) ),
-						sprintf( '<a href="%s" target="_blank">', self::ACCOUNT_URL ),
-						'</a>'
-					);
-				} else {
-					$message = sprintf(
-						/* translators: %s is a date */
-						esc_html__( 'Your license key expires on %s.', 'polylang' ),
-						esc_html( date_i18n( get_option( 'date_format' ), $expiration ) )
-					);
-				}
-			}
-		}
-
-		if ( ! empty( $message ) ) {
-			$out .= '<p>' . $message . '</p>';
-		}
-
-		return sprintf( '<tr id="pll-license-%s" class="%s">%s</tr>', esc_attr( $this->id ), $class, $out );
+		// Lisans giriş kutusu gizlendi
+		return '';
 	}
 }

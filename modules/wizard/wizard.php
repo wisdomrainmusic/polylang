@@ -374,23 +374,8 @@ class PLL_Wizard {
 	 * @return array List of steps updated.
 	 */
 	public function add_step_licenses( $steps ) {
-		// Add ajax action on deactivate button in licenses step.
-		add_action( 'wp_ajax_pll_deactivate_license', array( $this, 'deactivate_license' ) );
-
-		// Be careful `settings` script is enqueued here without dependency except jquery because only code useful for deactivate license button is needed.
-		// To be really loaded the script needs to be passed to the `$steps['licenses']['scripts']` array below with the same handle than in `wp_enqueue_script()`.
-		wp_enqueue_script( 'pll_settings', plugins_url( '/js/build/settings' . $this->get_suffix() . '.js', POLYLANG_ROOT_FILE ), array( 'jquery' ), POLYLANG_VERSION, true );
-		wp_localize_script( 'pll_settings', 'pll_settings', array( 'dismiss_notice' => esc_html__( 'Dismiss this notice.', 'polylang' ) ) );
-
-		if ( $this->is_licenses_step_displayable() ) {
-			$steps['licenses'] = array(
-				'name'    => esc_html__( 'Licenses', 'polylang' ),
-				'view'    => array( $this, 'display_step_licenses' ),
-				'handler' => array( $this, 'save_step_licenses' ),
-				'scripts' => array( 'pll_settings' ), // Polylang admin script used by deactivate license button.
-				'styles'  => array(),
-			);
-		}
+		// Lisans adımı devre dışı bırakıldı.
+		// Orijinal kodlar çalıştırılmadan sadece mevcut adımlar döndürülüyor.
 		return $steps;
 	}
 
